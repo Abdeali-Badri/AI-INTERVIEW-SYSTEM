@@ -15,7 +15,7 @@ def run_interview():
     print("=" * 60)
     print("Starting interview...\n")
     
-    # Initialize interview
+
     init_prompt = (
         "CONTEXT: Candidate has 3 years of machine learning experience. "
     "Skills: Python, NumPy, pandas, PyTorch, scikit-learn, NLP (transformers), model training/evaluation, and basic MLOps (Docker, REST deployment). "
@@ -28,7 +28,7 @@ def run_interview():
     interviewer_response = interviewer_agent.run(init_prompt)
     first_response = extract_text(interviewer_response)
 
-    # Parse formatted agent response (INTRO / FEEDBACK / DECISION / QUESTION)
+    
     def parse_response(resp):
         parts = {"intro": "", "feedback": "", "decision": "", "question": ""}
         for line in resp.splitlines():
@@ -70,17 +70,17 @@ def run_interview():
     
     interview_active = True
     question_count = 0
-    max_questions = 25  # safe upper bound if AI never ends the interview
+    max_questions = 25  
     
     while interview_active:
-        # STEP 1: Listen to user's voice answer with retry and spoken feedback
+       
         print("-" * 60)
         attempts = 0
         user_answer = None
         while attempts < 3:
             user_answer = listen_to_user(timeout=30, silence_duration=5)
             if user_answer is None:
-                # no audio captured
+               
                 try:
                     speak_text("I didn't hear you. Please speak louder.", play=True)
                 except Exception:
@@ -88,7 +88,7 @@ def run_interview():
                 attempts += 1
                 continue
             if not user_answer.strip():
-                # heard but couldn't understand
+                
                 try:
                     speak_text("I couldn't understand you. Please repeat clearly.", play=True)
                 except Exception:
@@ -107,7 +107,7 @@ def run_interview():
         question_count += 1
         print(f"[Question #{question_count} answered]\n")
 
-        # Enforce safe question limit
+       
         if question_count >= max_questions:
             try:
                 speak_text(f"Reached maximum of {max_questions} questions. Ending interview.", play=True)
@@ -116,7 +116,7 @@ def run_interview():
             print(f"Reached maximum of {max_questions} questions. Interview ended by limit.\n")
             break
         
-        # STEP 2: Send answer to AI for feedback and next question
+        
         feedback_prompt = f"""
         The candidate answered: "{user_answer}"
         
@@ -138,7 +138,7 @@ def run_interview():
         if feedback:
             print(f"Feedback: {feedback}\n")
             try:
-                # speak only short feedback (one line)
+               
                 speak_text(feedback, play=True)
             except Exception as e:
                 print(f"[Audio playback error: {e}]")
@@ -151,7 +151,7 @@ def run_interview():
             print("=" * 60 + "\n")
             break
 
-        # Ask the next question if provided
+        
         if next_question:
             print(f"AI: {next_question}\n")
             try:

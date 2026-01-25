@@ -1,0 +1,122 @@
+#root {
+  width: 100%;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  column-gap: 24px;
+  min-height: 100vh;
+}
+
+.sidebar {
+  background: #f5f5f5;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+.camera-frame {
+  border: 2px solid #e53935;
+  background: #000;
+  width: 320px;
+  height: 240px;
+  position: relative;
+  overflow: hidden;
+  margin: 0 auto 12px auto;
+}
+
+.main {
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.header {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.card {
+  background: #e3f2fd;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.question-card {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.question-text {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.answer-area {
+  width: 100%;
+  max-width: 640px;
+  height: 120px;
+}
+
+.btn {
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 10px 16px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-primary {
+  background: #1976d2;
+  color: #fff;
+}
+
+.btn-secondary {
+  background: #4CAF50;
+  color: #fff;
+}
+
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
+}
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
+}
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em #61dafbaa);
+}
+
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
+}
+
+.card {
+  padding: 2em;
+}
+
+.read-the-docs {
+  color: #888;
+}

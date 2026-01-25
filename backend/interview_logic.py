@@ -1,9 +1,14 @@
 import time
 import os
 import speech_recognition as sr
-import audioop
+try:
+    import audioop
+except ImportError:
+    audioop = None
+import base64
+import io
 from gtts import gTTS
-from playsound import playsound
+
 
 from agno.agent import Agent
 from agno.models.openai import OpenAIChat
@@ -20,7 +25,7 @@ def listen_to_user(timeout=10, silence_duration=3):
     Returns the recognized text.
     """
     r = sr.Recognizer()
-    # Let recognizer adjust to ambient noise (sets r.energy_threshold)
+    
     with sr.Microphone() as source:
         print("Listening... (speak now)")
         try:
@@ -32,10 +37,10 @@ def listen_to_user(timeout=10, silence_duration=3):
 
             silent_seconds = 0
 
-            # Use energy threshold as base for silence detection
+          
             silence_threshold = getattr(r, "energy_threshold", 300)
 
-            # Record in short (1s) chunks and examine RMS to detect silence
+            
             while True:
                 try:
                     audio = r.listen(source, timeout=1, phrase_time_limit=1)
@@ -44,27 +49,27 @@ def listen_to_user(timeout=10, silence_duration=3):
                         sample_rate = audio.sample_rate
                         sample_width = audio.sample_width
 
-                    # compute RMS of chunk
+                    
                     try:
                         rms = audioop.rms(raw, sample_width)
                     except Exception:
                         rms = 0
 
-                    # consider chunk silent if rms below threshold
+                    
                     if rms < silence_threshold:
                         silent_seconds += 1
-                        # if we've seen enough consecutive silent seconds, stop
+                       
                         if silent_seconds >= silence_duration:
                             break
-                        # don't append silent chunk
+                        
                         continue
                     else:
-                        # non-silent chunk: append and reset silent counter
+                        
                         chunks.append(raw)
                         silent_seconds = 0
 
                 except sr.WaitTimeoutError:
-                    # no phrase started in this 1s window
+                    
                     silent_seconds += 1
                     if silent_seconds >= silence_duration:
                         break
@@ -74,7 +79,7 @@ def listen_to_user(timeout=10, silence_duration=3):
                 print("No speech detected.")
                 return None
 
-            # Merge raw chunks into a single AudioData
+            
             merged = b"".join(chunks)
             audio_data = sr.AudioData(merged, sample_rate, sample_width)
 
@@ -102,27 +107,29 @@ def wav_to_text(filename):
     except:
         return ""
 
-def speak_text(text, play=True):
+def speak_text(text):
     """
-    Convert text to speech and optionally play it.
+    Convert text to speech and return base64 encoded audio.
     """
     text = extract_text(text)
     if not text.strip():
         return None
 
-    filename = f"static/response_{int(time.time())}.mp3"
     try:
-        gTTS(text=text, lang="en").save(filename)
-        if play:
-            print("\n[Playing audio...]")
-            playsound(filename)
-            print("[Audio finished]\n")
-        return filename
+        
+        tts = gTTS(text=text, lang="en")
+        fp = io.BytesIO()
+        tts.write_to_fp(fp)
+        fp.seek(0)
+        
+        
+        audio_base64 = base64.b64encode(fp.read()).decode('utf-8')
+        return audio_base64
     except Exception as e:
         print(f"Error in text-to-speech: {e}")
         return None
 
-# ---------- AGENTS ---------- #
+
 
 interviewer_agent = Agent(
     model=OpenAIChat(id="gpt-4o-mini"),
@@ -140,6 +147,19 @@ interviewer_agent = Agent(
     """
 )
 
-
-
-
+report_agent = Agent(
+    model=OpenAIChat(id="gpt-4o-mini"),
+    instructions="""
+    You are an expert technical interviewer and HR specialist.
+    Your task is to generate a detailed interview report based on the transcript of an interview.
+    
+    The report should include:
+    1. **Executive Summary**: Brief overview of the candidate's performance.
+    2. **Technical Skills Assessment**: Strengths and weaknesses in technical areas.
+    3. **Soft Skills Assessment**: Communication, problem-solving, and demeanor.
+    4. **Areas for Improvement**: Specific technical and soft skill areas to work on.
+    5. **Final Recommendation**: Hire, No Hire, or Next Round (with justification).
+    
+    Format the output in Markdown.
+    """
+)
