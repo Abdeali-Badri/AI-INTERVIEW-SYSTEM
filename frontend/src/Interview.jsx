@@ -22,7 +22,6 @@ function Interview() {
   const [camKey, setCamKey] = useState(0);
   const navigate = useNavigate();
   const [sessionId, setSessionId] = useState(localStorage.getItem('session_id') || '');
-  const [audioUnlocked, setAudioUnlocked] = useState(false);
   const [backendNote, setBackendNote] = useState('');
 
   // References
@@ -51,40 +50,20 @@ function Interview() {
   const TTS_VOLUME = 1;
   const autoplayUnlockedRef = useRef(false);
 
-  // Auto-enable camera on mount - runs after device enumeration
   useEffect(() => {
-    const enableCamera = async () => {
+    (async () => {
       try {
-        // First enumerate devices to get available cameras
-        if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
-          const list = await navigator.mediaDevices.enumerateDevices();
-          const vids = list.filter(d => d.kind === 'videoinput');
-          if (vids.length > 0 && !selectedDeviceId) {
-            setSelectedDeviceId(vids[0].deviceId);
-          }
-        }
-        
-        // Then request camera access
         const constraints = (selectedDeviceId && selectedDeviceId.length > 0)
           ? { video: { deviceId: { exact: selectedDeviceId } }, audio: false }
           : { video: { facingMode: "user" }, audio: false };
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
         setCameraReady(true);
-        const track = stream.getVideoTracks()[0];
-        if (track && track.getSettings && track.getSettings().deviceId) {
-          setSelectedDeviceId(track.getSettings().deviceId);
-        }
-      } catch (err) {
-        setCameraError(err);
+        stream.getTracks().forEach(t => t.stop());
+      } catch (e) {
+        setCameraError(e);
       }
-    };
+    })();
     
-    // Auto-enable camera immediately
-    enableCamera();
-  }, []);
-
-  // Auto-start interview and enable audio on mount
-  useEffect(() => {
     const startInterview = async () => {
       const jd = localStorage.getItem('jd') || 'General Software Engineering';
       const experience = localStorage.getItem('experience') || 'Not specified';
@@ -99,16 +78,9 @@ function Interview() {
         setFeedback(intro);
         setQuestion(q);
         setBackendNote('');
-        
-        // Auto-enable audio and speak
-        setAudioUnlocked(true);
-        autoplayUnlockedRef.current = true;
         if (!hasSpokenIntroRef.current) {
           hasSpokenIntroRef.current = true;
-          // Small delay to ensure audio context is ready
-          setTimeout(() => {
-            speak(intro + ". " + q, audio || '');
-          }, 500);
+          speak(intro + ". " + q, audio || '');
         }
       } catch {
         const jdText = localStorage.getItem('jd') || 'Role';
@@ -118,13 +90,9 @@ function Interview() {
         setFeedback(intro);
         setQuestion(q);
         setBackendNote('Backend unavailable. Using local fallback.');
-        setAudioUnlocked(true);
-        autoplayUnlockedRef.current = true;
         if (!hasSpokenIntroRef.current) {
           hasSpokenIntroRef.current = true;
-          setTimeout(() => {
-            speak(intro + ". " + q, '');
-          }, 500);
+          speak(intro + ". " + q, '');
         }
       }
     };
@@ -132,15 +100,19 @@ function Interview() {
   }, []);
 
   useEffect(() => {
-    // Device enumeration is now handled in the camera enable effect
+    
+    // Enumerate available video input devices
     if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
       navigator.mediaDevices.enumerateDevices()
         .then(list => {
           const vids = list.filter(d => d.kind === 'videoinput');
           setDevices(vids);
+          if (vids.length > 0 && !selectedDeviceId) {
+            setSelectedDeviceId(vids[0].deviceId);
+          }
         })
         .catch(err => {
-          // Silent fail - camera enable will handle errors
+          setCameraError(err);
         });
       const handleDeviceChange = async () => {
         try {
@@ -202,6 +174,16 @@ function Interview() {
 
     faceMesh.onResults(onFaceResults);
 
+    // Poll for webcam readiness to render camera even if onUserMedia is delayed
+    const pollReady = () => {
+      const video = webcamRef.current?.video;
+      if (video && video.readyState >= 2 && !cameraReady) {
+        setCameraReady(true);
+      }
+      rafIdRef.current = requestAnimationFrame(pollReady);
+    };
+    rafIdRef.current = requestAnimationFrame(pollReady);
+
     if (cameraReady && webcamRef.current && webcamRef.current.video) {
       const loop = async () => {
         const video = webcamRef.current?.video;
@@ -244,10 +226,30 @@ function Interview() {
       document.addEventListener("visibilitychange", handleVisibilityChange);
     }
 
-    // Audio is already auto-enabled in the startInterview effect
-    // No need for manual unlock handlers
+    // Initial TTS
+    const initAudio = localStorage.getItem('first_audio') || '';
+    if (!hasSpokenIntroRef.current) {
+      hasSpokenIntroRef.current = true;
+      speak(feedback + ". " + question, initAudio);
+    }
+
+    const unlockAudio = () => {
+      if (!autoplayUnlockedRef.current) {
+        autoplayUnlockedRef.current = true;
+        const initAudio2 = localStorage.getItem('first_audio') || '';
+        const txt = (feedback || '') + ". " + (question || '');
+        if (txt.trim()) {
+          speak(txt, initAudio2);
+        }
+      }
+    };
+    document.addEventListener('pointerdown', unlockAudio, { once: true });
+    document.addEventListener('keydown', unlockAudio, { once: true });
+    // Cleanup handled in final return
 
     return () => {
+      document.removeEventListener('pointerdown', unlockAudio);
+      document.removeEventListener('keydown', unlockAudio);
       if (cameraReady) {
         document.removeEventListener("visibilitychange", handleVisibilityChange);
       }
@@ -290,29 +292,7 @@ function Interview() {
     }
   };
 
-  const retryCamera = () => {
-    setCameraError(null);
-    setCameraReady(false);
-    setCamKey(k => k + 1); // force remount of Webcam
-  };
-  
-  const requestCameraAccess = async () => {
-    try {
-      const constraints = (selectedDeviceId && selectedDeviceId.length > 0)
-        ? { video: { deviceId: { exact: selectedDeviceId } }, audio: false }
-        : { video: { facingMode: "user" }, audio: false };
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      // If we got a stream, permission is granted
-      setCameraReady(true);
-      // Try to read track deviceId for consistency with selection
-      const track = stream.getVideoTracks()[0];
-      if (track && track.getSettings && track.getSettings().deviceId) {
-        setSelectedDeviceId(track.getSettings().deviceId);
-      }
-    } catch (err) {
-      setCameraError(err);
-    }
-  };
+  // Camera access and readiness handled automatically by the hidden Webcam component
 
   const monitorAudioLevel = () => {
       if (!analyserRef.current || !dataArrayRef.current) return;
@@ -529,18 +509,13 @@ function Interview() {
     <div className="layout">
       {/* Sidebar / Camera */}
       <div className="sidebar" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', boxSizing: 'border-box' }}>
-        <h3 style={{ textAlign: 'center', width: '100%' }}>📹 Candidate View</h3>
+        <h3>Candidate View</h3>
         <div className="camera-frame" style={{ padding: '5px' }}>
             {cameraError ? (
                 <div style={{ color: 'white', padding: '20px', textAlign: 'center' }}>
                     <p>❌ Camera Error</p>
                     <small>{cameraError.toString()}</small>
-                     <p>Please allow camera access in browser settings.</p>
-                     <p>Close other apps using camera (Zoom/Teams/Meet/OBS) and click Retry.</p>
-                     <button onClick={retryCamera} style={{ marginTop: '10px' }}>Retry Camera</button>
-                     <div style={{ marginTop: '10px' }}>
-                        <button onClick={requestCameraAccess} style={{ padding: '6px 10px' }}>Request Access</button>
-                     </div>
+                    <p>Please allow camera access in your browser prompt/settings and close other apps using the camera.</p>
                 </div>
             ) : (
               <>
@@ -566,14 +541,6 @@ function Interview() {
                          : { facingMode: "user", width: CAM_W, height: CAM_H, aspectRatio: CAM_W / CAM_H }
                      }
                 />
-                {!cameraReady && !cameraError && (
-                  <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.7)', borderRadius: '16px' }}>
-                    <div style={{ color: 'white', textAlign: 'center', padding: '20px' }}>
-                      <div style={{ fontSize: '2rem', marginBottom: '10px' }}>📹</div>
-                      <div>Initializing camera...</div>
-                    </div>
-                  </div>
-                )}
               </>
             )}
              {warningMsg && (
@@ -592,18 +559,7 @@ function Interview() {
                 </div>
             )}
         </div>
-        <div style={{ 
-          background: strikes >= 3 ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-          color: 'white',
-          padding: '12px',
-          borderRadius: '12px',
-          textAlign: 'center',
-          fontWeight: 'bold',
-          fontSize: '1.1rem',
-          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
-        }}>
-          ⚠️ Strikes: {strikes}/5
-        </div>
+        <p style={{ color: 'red', fontWeight: 'bold', height: 24, display: 'flex', alignItems: 'center' }}>Strikes: {strikes}/5</p>
         {devices.length > 1 && (
           <div style={{ marginTop: '0.5rem', height: 32, display: 'flex', alignItems: 'center' }}>
             <label style={{ fontSize: '0.8rem' }}>Camera:</label>{" "}
@@ -618,22 +574,9 @@ function Interview() {
             </select>
           </div>
         )}
-        <div style={{ 
-          marginTop: 'auto', 
-          padding: '1.25rem', 
-          background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
-          borderRadius: '12px', 
-          minHeight: 140, 
-          boxSizing: 'border-box', 
-          overflowY: 'auto', 
-          width: '100%',
-          border: '2px solid #f59e0b',
-          boxShadow: '0 2px 8px rgba(245, 158, 11, 0.2)'
-        }}>
-            <div style={{ fontWeight: 'bold', color: '#92400e', marginBottom: '0.75rem', fontSize: '0.9rem' }}>
-              ⚠️ Anti-Cheat Active:
-            </div>
-            <ul style={{ fontSize: '0.85rem', paddingLeft: '1.2rem', color: '#78350f', lineHeight: '1.8' }}>
+        <div style={{ marginTop: 'auto', padding: '1rem', background: '#fff', borderRadius: '8px', height: 140, boxSizing: 'border-box', overflowY: 'auto', width: '100%', maxWidth: 320 }}>
+            <small>⚠️ Anti-Cheat Active:</small>
+            <ul style={{ fontSize: '0.8rem', paddingLeft: '1.2rem' }}>
                 <li>No tab switching</li>
                 <li>Keep face visible & centered</li>
                 <li>No murmuring/talking when not answering</li>
@@ -643,7 +586,7 @@ function Interview() {
 
       {/* Main Content */}
       <div className="main">
-        <div className="header">🤖 AI Interviewer</div>
+        <div className="header">AI Interviewer</div>
         
         <div className="card" style={{ height: 100, overflowY: 'auto' }}>
             <strong>Feedback:</strong> {feedback || ' '}
@@ -664,26 +607,13 @@ function Interview() {
             <div className="question-text">Q: {question || ' '}</div>
         </div>
         
-        {(!question || !feedback) && !processing && (
-          <div style={{ marginBottom: '1rem', textAlign: 'center', padding: '20px', background: 'rgba(102, 126, 234, 0.1)', borderRadius: '12px' }}>
-            <div style={{ fontSize: '1.1rem', color: '#667eea', fontWeight: 600 }}>
-              Initializing interview...
-            </div>
-          </div>
-        )}
+        {/* Auto-start and audio are now handled programmatically; no manual buttons */}
 
-        <div style={{ marginTop: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
-            <div style={{ 
-              height: 28, 
-              display: 'flex', 
-              alignItems: 'center', 
-              width: '100%', 
-              maxWidth: '100%',
-              fontWeight: 600,
-              color: '#667eea',
-              fontSize: '1.1rem'
-            }}>
-              💬 Your Answer:
+        {/* If question/feedback were empty, fallback and TTS are already applied automatically */}
+
+        <div style={{ marginTop: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <div style={{ height: 28, display: 'flex', alignItems: 'center', width: '100%', maxWidth: '600px' }}>
+              <span>Your Answer:</span>
             </div>
             <div style={{ display: 'none' }}>
               {lookAwayCounter}{noiseCounter}
@@ -714,22 +644,18 @@ function Interview() {
                 onClick={startRecording} 
                 disabled={!cameraReady || isRecording || processing}
                 style={{ 
-                    padding: '1rem 2rem', 
+                    padding: '0.75rem 1.5rem', 
                     fontSize: '1.2rem', 
-                    background: !cameraReady ? '#9e9e9e' : (isRecording ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' : 'linear-gradient(135deg, #10b981 0%, #059669 100%)'), 
+                    background: !cameraReady ? '#9e9e9e' : (isRecording ? 'red' : '#4CAF50'), 
                     color: 'white', 
                     border: 'none', 
                     borderRadius: '50px',
-                    cursor: !cameraReady || isRecording || processing ? 'not-allowed' : 'pointer',
-                    width: 200,
-                    height: 80,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px'
+                    cursor: 'pointer',
+                    width: 140,
+                    height: 120
                 }}
             >
-                {!cameraReady ? '⏳ Initializing...' : (isRecording ? '🎙️ Listening...' : processing ? '⏳ Processing...' : '🎤 Tap to Speak')}
+                {!cameraReady ? 'Enable Camera to Continue' : (isRecording ? 'Listening...' : processing ? 'Processing...' : '🎤 Tap to Speak')}
             </button>
         </div>
       </div>
