@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from interview_logic import interviewer_agent, extract_text, report_agent, speak_text
 from dotenv import load_dotenv
@@ -10,12 +10,25 @@ import random
 
 load_dotenv()
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder="static", static_url_path="/")
 CORS(app)
 
-@app.route('/')
+@app.route("/")
 def home():
-    return "AI Interview Backend is Running! Please use the Frontend."
+    """
+    Serve the pure HTML/CSS/JS frontend (home page).
+    """
+    return send_from_directory(app.static_folder, "index.html")
+
+
+@app.route("/interview")
+def interview_page():
+    return send_from_directory(app.static_folder, "interview.html")
+
+
+@app.route("/report")
+def report_page():
+    return send_from_directory(app.static_folder, "report.html")
 
 
 sessions = {}
