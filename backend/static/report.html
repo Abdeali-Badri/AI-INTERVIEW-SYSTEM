@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Interview Report</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="styles.css" />
+  <!-- jsPDF + html2canvas from CDN so you don't need npm -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body>
+  <div class="page-shell">
+    <div class="card-shell">
+      <div class="top-actions">
+        <div>
+          <h1 style="margin-bottom:0.3rem;">Interview Report</h1>
+          <div class="muted">Detailed summary of your AI interview performance.</div>
+        </div>
+        <div class="top-actions-group">
+          <button id="download-pdf" class="btn btn-primary">
+            📄 Download PDF
+          </button>
+          <button id="back-home" class="btn btn-ghost">
+            🏠 Back to Home
+          </button>
+        </div>
+      </div>
+
+      <div id="loading-block" style="text-align:center;margin-top:2.5rem;">
+        <div class="spinner"></div>
+        <p style="margin-top:0.75rem;font-weight:600;color:#4f46e5;">
+          Generating detailed analysis... Please wait.
+        </p>
+      </div>
+
+      <div id="report-container" class="report-container" style="display:none;">
+        <!-- Filled by report.js -->
+      </div>
+    </div>
+  </div>
+
+  <script src="report.js"></script>
+</body>
+</html>
+

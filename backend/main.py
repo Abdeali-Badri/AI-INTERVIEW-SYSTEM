@@ -70,7 +70,7 @@ def run_interview():
     
     interview_active = True
     question_count = 0
-    max_questions = 25  
+    max_questions = 50  
     
     while interview_active:
        

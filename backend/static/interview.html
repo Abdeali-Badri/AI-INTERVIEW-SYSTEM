@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>AI Interview - Live</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="styles.css" />
+  <!-- Mediapipe FaceMesh -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+</head>
+<body>
+  <div class="page-shell">
+    <div class="card-shell" style="max-width: 1100px;">
+      <div class="layout">
+        <div class="sidebar">
+          <h3>📹 Candidate View</h3>
+
+          <div class="camera-frame">
+            <canvas id="camera-canvas" width="320" height="240"></canvas>
+            <video id="camera-video" autoplay playsinline muted style="display:none;"></video>
+            <div id="camera-loading" style="
+              position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+              background:rgba(0,0,0,0.6);color:#fff;font-size:0.95rem;
+            ">
+              <div>
+                <div style="text-align:center;margin-bottom:0.25rem;">⏳ Initializing camera...</div>
+                <div style="font-size:0.8rem;text-align:center;">Please allow camera access in the browser.</div>
+              </div>
+            </div>
+            <div id="look-warning" class="camera-overlay-warning" style="display:none;">
+              ⚠ Please look at the screen!
+            </div>
+          </div>
+
+          <div id="strike-pill" class="strike-pill">
+            Strikes: <span id="strike-count">0</span>/5
+          </div>
+
+          <div class="anti-cheat-card">
+            <strong>⚠ Anti-cheat active</strong>
+            <ul style="margin:0;padding-left:1.1rem;">
+              <li>No tab switching / minimizing</li>
+              <li>Keep your face visible and centered</li>
+              <li>No murmuring when not answering</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="main-panel">
+          <div class="panel-title">🤖 AI Interviewer</div>
+
+          <div class="info-card" id="feedback-box">
+            <strong>Feedback:</strong>
+            <span id="feedback-text">Waiting for interviewer...</span>
+          </div>
+
+          <div class="question-card">
+            <div class="question-label">Current Question</div>
+            <div class="question-text" id="question-text">Loading question...</div>
+          </div>
+
+          <div class="answer-block">
+            <div class="answer-label">💬 Your Answer:</div>
+            <textarea
+              id="answer-input"
+              class="answer-textarea"
+              placeholder="You can speak with the mic or type your answer here..."
+            ></textarea>
+
+            <div class="controls-row">
+              <button id="submit-btn" class="btn btn-primary">
+                ✅ Submit Answer
+              </button>
+
+              <button id="mic-btn" class="btn btn-secondary">
+                🎤 Tap to Speak
+              </button>
+
+              <button id="report-btn" class="btn btn-ghost">
+                📄 View Report
+              </button>
+            </div>
+
+            <div id="status-line" class="muted" style="text-align:center;margin-top:0.25rem;">
+              Camera and mic are active. Answer when you are ready.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="interview.js"></script>
+</body>
+</html>
+

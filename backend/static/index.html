@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>AI Interview System</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="page-shell">
+    <div class="card-shell">
+      <h1>AI Interview System</h1>
+      <p class="home-subtitle">
+        Paste the job description and your experience to start a fully automated AI interview.
+      </p>
+
+      <div class="form-group">
+        <label for="jd">Job Description</label>
+        <textarea id="jd" placeholder="Paste Job Description here..." rows="6"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label for="experience">Years of Experience / Profile</label>
+        <textarea
+          id="experience"
+          placeholder="e.g. 3 years with Python, ML model deployment, React..."
+          rows="4"
+        ></textarea>
+      </div>
+
+      <button id="start-btn" class="primary-btn">
+        🚀 Start Interview
+      </button>
+
+      <p class="muted" style="margin-top: 1rem; text-align: center;">
+        Camera and microphone will be requested automatically on the next screen for proctoring and voice.
+      </p>
+    </div>
+  </div>
+
+  <script src="home.js"></script>
+</body>
+</html>
+
