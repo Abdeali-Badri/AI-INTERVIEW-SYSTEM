@@ -14,7 +14,7 @@
     "@mediapipe/face_mesh": "^0.4.1633559619",
     "axios": "^1.13.2",
     "html2canvas": "^1.4.1",
-    "jspdf": "^2.5.1",
+    "jspdf": "^2.5.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-markdown": "^10.1.0",

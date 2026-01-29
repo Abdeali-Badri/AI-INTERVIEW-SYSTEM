@@ -40,6 +40,12 @@
     </div>
   </div>
 
+  <script>
+    // Basic info
+    document.getElementById('candidate-name').textContent = 'N/A';
+    document.getElementById('candidate-experience').textContent = localStorage.getItem('experience') || 'N/A';
+  </script>
+
   <script src="report.js"></script>
 </body>
 </html>

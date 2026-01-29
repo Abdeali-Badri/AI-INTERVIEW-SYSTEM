@@ -8,10 +8,22 @@ except ImportError:
 import base64
 import io
 from gtts import gTTS
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.lib import colors
+from datetime import datetime
 
 
-from agno.agent import Agent
-from agno.models.openai import OpenAIChat
+import google.generativeai as genai
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# Configure Gemini API
+genai.configure(api_key=os.getenv("GEMINI_API_KEY", "your_gemini_api_key_here"))
 
 def extract_text(run_output):
     if hasattr(run_output, "content"):
@@ -116,50 +128,147 @@ def speak_text(text):
         return None
 
     try:
-        
-        tts = gTTS(text=text, lang="en")
+        print(f"DEBUG: Attempting TTS for text: '{text[:50]}...'")
+        tts = gTTS(text=text, lang="en", slow=False)
         fp = io.BytesIO()
         tts.write_to_fp(fp)
         fp.seek(0)
         
-        
         audio_base64 = base64.b64encode(fp.read()).decode('utf-8')
+        print(f"DEBUG: TTS success, audio length: {len(audio_base64)}")
         return audio_base64
     except Exception as e:
-        print(f"Error in text-to-speech: {e}")
+        print(f"ERROR in text-to-speech: {e}")
+        return None
+
+
+def generate_pdf_report(session_data):
+    """
+    Generate a PDF report from interview session data.
+    Returns base64 encoded PDF.
+    """
+    try:
+        # Create a BytesIO buffer
+        buffer = io.BytesIO()
+        
+        # Create the PDF document
+        doc = SimpleDocTemplate(buffer, pagesize=A4)
+        story = []
+        
+        # Get styles
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=24,
+            spaceAfter=30,
+            alignment=1  # Center
+        )
+        
+        # Title
+        story.append(Paragraph("AI Interview Report", title_style))
+        story.append(Spacer(1, 20))
+        
+        # Candidate Information
+        story.append(Paragraph("Candidate Information", styles['Heading2']))
+        candidate_data = [
+            ['Job Description', session_data.get('jd', 'N/A')],
+            ['Experience', session_data.get('experience', 'N/A')],
+            ['Interview Date', datetime.now().strftime('%Y-%m-%d %H:%M:%S')],
+            ['Total Questions', str(len(session_data.get('transcript', [])) // 2)],
+            ['Session ID', session_data.get('session_id', 'N/A')]
+        ]
+        
+        candidate_table = Table(candidate_data, colWidths=[2*inch, 4*inch])
+        candidate_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+        story.append(candidate_table)
+        story.append(Spacer(1, 20))
+        
+        # Interview Transcript
+        story.append(Paragraph("Interview Transcript", styles['Heading2']))
+        
+        transcript = session_data.get('transcript', [])
+        for i, line in enumerate(transcript):
+            if line.startswith('Candidate:'):
+                story.append(Paragraph(f"<b>Candidate:</b> {line[11:]}", styles['Normal']))
+            elif line.startswith('Interviewer:'):
+                story.append(Paragraph(f"<b>Interviewer:</b> {line[13:]}", styles['Normal']))
+            story.append(Spacer(1, 6))
+        
+        story.append(Spacer(1, 20))
+        
+        # AI Evaluation
+        story.append(Paragraph("AI Evaluation", styles['Heading2']))
+        
+        # Generate AI evaluation
+        evaluation_prompt = f"""
+        Based on this interview transcript, provide a comprehensive evaluation:
+        
+        Job Description: {session_data.get('jd', 'N/A')}
+        Experience: {session_data.get('experience', 'N/A')}
+        
+        Transcript:
+        {chr(10).join(transcript)}
+        
+        Please provide:
+        1. Overall Assessment (1-10 scale)
+        2. Technical Skills Evaluation
+        3. Communication Skills
+        4. Problem-Solving Ability
+        5. Strengths
+        6. Areas for Improvement
+        7. Recommendation (Hire/Consider/Reject)
+        """
+        
+        try:
+            evaluation = interviewer_agent(evaluation_prompt)
+            evaluation_text = evaluation
+            
+            # Split evaluation into paragraphs
+            for paragraph in evaluation_text.split('\n'):
+                if paragraph.strip():
+                    story.append(Paragraph(paragraph.strip(), styles['Normal']))
+                    story.append(Spacer(1, 6))
+        except Exception as e:
+            story.append(Paragraph(f"Evaluation generation failed: {str(e)}", styles['Normal']))
+        
+        # Build PDF
+        doc.build(story)
+        
+        # Get PDF bytes and encode
+        buffer.seek(0)
+        pdf_bytes = buffer.read()
+        pdf_base64 = base64.b64encode(pdf_bytes).decode('utf-8')
+        
+        return pdf_base64
+        
+    except Exception as e:
+        print(f"Error generating PDF: {e}")
         return None
 
 
 
-interviewer_agent = Agent(
-    model=OpenAIChat(id="gpt-4o-mini"),
-    instructions="""
-    You are an experienced human interviewer (do NOT call yourself an AI).
-    Speak like an interviewer addressing a candidate. Use short plain lines.
-    Do NOT use bullets, asterisks, or markdown. Keep each line brief (one short sentence).
-    After evaluating an answer, respond with exactly these labeled lines (each on its own line):
-    FEEDBACK: <one-line constructive feedback>
-    DECISION: NEXT_QUESTION or INTERVIEW_COMPLETE
-    QUESTION: <the next question to ask, short>
-
-    If you decide the interview is complete, set DECISION: INTERVIEW_COMPLETE and include no QUESTION line.
-    End responses with no extra commentary.
+def interviewer_agent(prompt):
     """
-)
-
-report_agent = Agent(
-    model=OpenAIChat(id="gpt-4o-mini"),
-    instructions="""
-    You are an expert technical interviewer and HR specialist.
-    Your task is to generate a detailed interview report based on the transcript of an interview.
-    
-    The report should include:
-    1. **Executive Summary**: Brief overview of the candidate's performance.
-    2. **Technical Skills Assessment**: Strengths and weaknesses in technical areas.
-    3. **Soft Skills Assessment**: Communication, problem-solving, and demeanor.
-    4. **Areas for Improvement**: Specific technical and soft skill areas to work on.
-    5. **Final Recommendation**: Hire, No Hire, or Next Round (with justification).
-    
-    Format the output in Markdown.
+    Generate interviewer response using Gemini API
     """
-)
+    model = genai.GenerativeModel('gemini-2.5-flash')
+    response = model.generate_content(prompt)
+    return response.text
+
+def report_agent(prompt):
+    """
+    Generate report using Gemini API
+    """
+    model = genai.GenerativeModel('gemini-2.5-flash')
+    response = model.generate_content(prompt)
+    return response.text

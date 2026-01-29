@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>AI Interview - Simple</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .content {
+      display: flex;
+      min-height: 500px;
+    }
+
+    .camera-section {
+      flex: 1;
+      padding: 20px;
+      border-right: 1px solid #eee;
+    }
+
+    .interview-section {
+      flex: 2;
+      padding: 20px;
+    }
+
+    .camera-frame {
+      position: relative;
+      width: 100%;
+      max-width: 320px;
+      margin: 0 auto;
+    }
+
+    #camera-video {
+      width: 100%;
+      height: auto;
+      border-radius: 10px;
+      background: #000;
+    }
+
+    .question-box {
+      background: #f8f9fa;
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      border-left: 4px solid #667eea;
+    }
+
+    .answer-area {
+      margin-bottom: 20px;
+    }
+
+    textarea {
+      width: 100%;
+      padding: 15px;
+      border: 2px solid #e1e5e9;
+      border-radius: 10px;
+      font-size: 16px;
+      resize: vertical;
+      min-height: 100px;
+    }
+
+    .btn {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 10px;
+      font-size: 16px;
+      cursor: pointer;
+      margin: 5px;
+    }
+
+    .btn:hover {
+      opacity: 0.9;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .status {
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 5px;
+      text-align: center;
+    }
+
+    .status.info {
+      background: #e3f2fd;
+      color: #1976d2;
+    }
+
+    .status.success {
+      background: #e8f5e8;
+      color: #2e7d32;
+    }
+
+    .status.error {
+      background: #ffebee;
+      color: #c62828;
+    }
+    
+    .status.warning {
+      background: #fff3cd;
+      color: #856404;
+      border: 1px solid #ffeaa7;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🤖 AI Interview System</h1>
+      <p>Simple Frontend - Gemini Powered</p>
+    </div>
+
+    <div class="content">
+      <div class="camera-section">
+        <h3>📹 Camera</h3>
+        <div class="camera-frame">
+          <video id="camera-video" autoplay muted></video>
+        </div>
+        <div class="status info">
+          Camera: <span id="camera-status">Initializing...</span>
+        </div>
+        <div class="status info">
+          Face Detection: <span id="face-status">Initializing...</span>
+        </div>
+      </div>
+
+      <div class="interview-section">
+        <h3>Interview</h3>
+        
+        <div class="status info">
+          Question Progress: <span id="question-progress">1/5</span>
+        </div>
+        
+        <div class="status warning" id="cheat-warning" style="display: none;">
+          Warning: <span id="cheat-message">Suspicious activity detected!</span>
+        </div>
+        
+        <div class="question-box">
+          <div class="status info">
+            <strong>Question:</strong>
+          </div>
+          <div id="question-text">Loading question...</div>
+          
+          <!-- Audio Controls -->
+          <div class="audio-controls" style="margin: 15px 0;">
+            <button id="record-btn" class="btn btn-secondary">
+              Start Recording
+            </button>
+            <div id="recording-status" class="status info" style="margin-top: 10px; display: none;">
+              Recording... Speak now (stops after 5 seconds of silence)
+            </div>
+          </div>
+        </div>
+        
+        <div class="feedback-box">
+          <div class="status info">
+            <strong>Feedback:</strong>
+          </div>
+          <div id="feedback-text">Waiting for your answer...</div>
+        </div>
+        
+        <div class="answer-box">
+          <label for="answer-text">Your Answer:</label>
+          <textarea id="answer-text" placeholder="Type your answer here or use voice recording..." rows="4"></textarea>
+          <div class="button-group">
+            <button id="submit-btn" class="btn btn-primary">Submit Answer</button>
+            <button id="reset-btn" class="btn btn-warning" style="display: none;">Reset Submission</button>
+            <button id="report-btn" class="btn btn-success" style="display: none;">Download Report</button>
+          </div>
+        </div>
+        
+        <div class="status" id="status">Ready to start interview...</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Global variables
+    let sessionId = null;
+    let currentQuestion = null;
+    let cameraStream = null;
+    let strikes = 0;
+    let tabSwitchCount = 0;
+    let lastActiveTime = Date.now();
+    let answerStartTime = null;
+
+    // DOM elements
+    const video = document.getElementById('camera-video');
+    const feedbackText = document.getElementById('feedback-text');
+    const questionText = document.getElementById('question-text');
+    const questionProgress = document.getElementById('question-progress');
+    const cheatWarning = document.getElementById('cheat-warning');
+    const cheatMessage = document.getElementById('cheat-message');
+    const answerText = document.getElementById('answer-text');
+    const submitBtn = document.getElementById('submit-btn');
+    const reportBtn = document.getElementById('report-btn');
+    const resetBtn = document.getElementById('reset-btn');
+    const status = document.getElementById('status');
+    const cameraStatus = document.getElementById('camera-status');
+    const faceStatus = document.getElementById('face-status');
+    
+    // Audio control elements
+    const recordBtn = document.getElementById('record-btn');
+    const recordingStatus = document.getElementById('recording-status');
+    
+    // Audio state
+    let isRecording = false;
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let currentRecognition = null; // Track current recognition
+    let silenceTimer = null;
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', async () => {
+      console.log('🔵 DOM loaded, initializing...');
+      console.log('🔵 Submit button found:', !!submitBtn);
+      console.log('🔵 Submit button visible:', submitBtn.style.display);
+      console.log('🔵 Submit button disabled:', submitBtn.disabled);
+      
+      // Manual button test
+      setTimeout(() => {
+        console.log('🔵 Manual button test:');
+        console.log('🔵 Button element:', submitBtn);
+        console.log('🔵 Button clickable:', !submitBtn.disabled);
+        console.log('🔵 Button onclick:', !!submitBtn.onclick);
+        
+        // Force enable button
+        submitBtn.disabled = false;
+        submitBtn.style.pointerEvents = 'auto';
+        submitBtn.style.zIndex = '1000';
+        
+        console.log('🔵 Button forced enabled');
+      }, 2000);
+      
+      await initCamera();
+      await startInterview();
+      initCheatDetection();
+      initFaceDetection();
+      initAudioControls();
+      
+      console.log('🔵 After interview start:');
+      console.log('🔵 Submit button visible:', submitBtn.style.display);
+      console.log('🔵 Submit button disabled:', submitBtn.disabled);
+    });
+
+    // Audio Controls
+    function initAudioControls() {
+      console.log('🎵 Initializing audio controls...');
+      
+      // Record button only
+      recordBtn.addEventListener('click', toggleRecording);
+    }
+
+    async function speakText(text) {
+      console.log('🔊 Speaking:', text);
+      
+      try {
+        // Use Web Speech API for TTS
+        if ('speechSynthesis' in window) {
+          const utterance = new SpeechSynthesisUtterance(text);
+          utterance.rate = 0.9;
+          utterance.pitch = 1;
+          utterance.volume = 0.8;
+          
+          speechSynthesis.speak(utterance);
+          
+          utterance.onend = () => {
+            console.log('Speech completed');
+          };
+        } else {
+          console.log('Speech synthesis not supported');
+          alert('Text-to-speech is not supported in your browser');
+        }
+      } catch (error) {
+        console.error('TTS error:', error);
+      }
+    }
+
+    async function toggleRecording() {
+      if (!isRecording) {
+        await startRecording();
+      } else {
+        stopRecording();
+      }
+    }
+
+    async function startRecording() {
+      try {
+        console.log('Starting recording...');
+        
+        // Clean up any previous recognition
+        if (currentRecognition) {
+          try {
+            currentRecognition.stop();
+            currentRecognition = null;
+          } catch (e) {
+            console.log('Cleaning up previous recognition');
+          }
+        }
+        
+        // Clear any existing silence timer
+        if (silenceTimer) {
+          clearTimeout(silenceTimer);
+          silenceTimer = null;
+        }
+        
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        
+        // Use Web Speech API for real-time speech recognition
+        const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+        recognition.maxAlternatives = 1;
+        
+        currentRecognition = recognition; // Track this recognition
+        
+        let finalTranscript = '';
+        let lastSpeechTime = Date.now();
+        
+        recognition.onresult = (event) => {
+          let interimTranscript = '';
+          
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript;
+            const confidence = event.results[i][0].confidence;
+            
+            if (event.results[i].isFinal) {
+              finalTranscript += transcript + ' ';
+              lastSpeechTime = Date.now();
+              console.log('Final transcript:', transcript, `Confidence: ${confidence}`);
+              
+              // Reset silence timer when speech is detected
+              if (silenceTimer) {
+                clearTimeout(silenceTimer);
+              }
+              
+              // Start new silence timer (8 seconds - increased)
+              silenceTimer = setTimeout(() => {
+                console.log('8 seconds of silence detected - stopping recording');
+                stopRecording();
+                // Only fill answer field after recording stops
+                answerText.value = finalTranscript.trim();
+                console.log('Answer captured:', finalTranscript.trim());
+              }, 8000);
+              
+            } else {
+              interimTranscript += transcript;
+              lastSpeechTime = Date.now();
+            }
+          }
+          
+          // Update recording status with current speech
+          if (interimTranscript) {
+            recordingStatus.textContent = `Recording... "${interimTranscript}"`;
+          } else if (finalTranscript) {
+            recordingStatus.textContent = `Recording... "${finalTranscript.slice(-50)}..."`;
+          }
+        };
+        
+        recognition.onerror = (event) => {
+          console.error('Speech recognition error:', event.error);
+          if (event.error === 'aborted') {
+            console.log('Recognition aborted, restarting...');
+            recordingStatus.textContent = 'Restarting recognition...';
+            // Don't show error to user, just restart
+            setTimeout(() => {
+              if (isRecording) {
+                recognition.start();
+              }
+            }, 1000);
+          } else if (event.error === 'no-speech') {
+            recordingStatus.textContent = 'No speech detected, try again...';
+          } else if (event.error === 'network') {
+            recordingStatus.textContent = 'Network error, check connection';
+          } else {
+            recordingStatus.textContent = `Error: ${event.error}`;
+          }
+        };
+        
+        recognition.onend = () => {
+          console.log('Speech recognition ended');
+          if (isRecording && currentRecognition === recognition) {
+            // Restart recognition if still recording and this is the same recognition
+            setTimeout(() => {
+              if (isRecording && currentRecognition === recognition) {
+                try {
+                  recognition.start();
+                } catch (e) {
+                  console.log('Could not restart recognition:', e);
+                }
+              }
+            }, 100);
+          }
+        };
+        
+        // Start recognition
+        recognition.start();
+        
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+        
+        mediaRecorder.ondataavailable = (event) => {
+          audioChunks.push(event.data);
+        };
+        
+        mediaRecorder.start();
+        isRecording = true;
+        
+        recordBtn.textContent = 'Stop Recording';
+        recordBtn.className = 'btn btn-danger';
+        recordingStatus.style.display = 'block';
+        recordingStatus.textContent = 'Listening... Speak now (stops after 8 seconds of silence)';
+        
+        // Start silence timer (initial 8 seconds)
+        silenceTimer = setTimeout(() => {
+          if (finalTranscript.length === 0) {
+            console.log('8 seconds of silence - no speech detected');
+            recordingStatus.textContent = 'No speech detected, stopping...';
+            setTimeout(stopRecording, 1000);
+          }
+        }, 8000);
+        
+        // Auto-stop after 60 seconds max (increased from 30)
+        setTimeout(() => {
+          if (isRecording) {
+            console.log('Maximum recording time reached');
+            stopRecording();
+          }
+        }, 60000);
+        
+      } catch (error) {
+        console.error('Recording error:', error);
+        alert('Could not access microphone. Please check permissions.');
+      }
+    }
+
+    function stopRecording() {
+      if (mediaRecorder && isRecording) {
+        // Stop media recorder
+        mediaRecorder.stop();
+        mediaRecorder.stream.getTracks().forEach(track => track.stop());
+        
+        // Stop and cleanup recognition
+        if (currentRecognition) {
+          try {
+            currentRecognition.stop();
+            currentRecognition = null;
+          } catch (e) {
+            console.log('🧹 Stopping recognition:', e);
+          }
+        }
+        
+        // Clear silence timer
+        if (silenceTimer) {
+          clearTimeout(silenceTimer);
+          silenceTimer = null;
+        }
+        
+        isRecording = false;
+        recordBtn.textContent = 'Start Recording';
+        recordBtn.className = 'btn btn-secondary';
+        recordingStatus.style.display = 'none';
+        
+        console.log('Recording stopped completely');
+        
+        // Ensure the final transcript is preserved
+        const currentAnswer = answerText.value.trim();
+        if (currentAnswer) {
+          console.log('Final answer captured:', currentAnswer);
+        }
+      }
+    }
+
+    // Face Detection Integration
+    async function initFaceDetection() {
+      console.log('Initializing backend face detection...');
+      faceStatus.textContent = 'Starting...';
+      
+      // Start face monitoring after interview starts
+      setTimeout(() => {
+        if (sessionId && video.srcObject) {
+          startBackendFaceDetection();
+          faceStatus.textContent = 'Monitoring';
+          faceStatus.parentElement.className = 'status success';
+          console.log('Backend face detection monitoring started');
+        }
+      }, 2000);
+    }
+
+    function startBackendFaceDetection() {
+      // Capture video frame and send to backend every 2 seconds
+      setInterval(async () => {
+        if (!sessionId || !video.srcObject) return;
+        
+        try {
+          // Create canvas to capture video frame
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          canvas.width = 320;
+          canvas.height = 240;
+          
+          // Draw video frame to canvas
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          
+          // Convert to base64
+          const imageData = canvas.toDataURL('image/jpeg', 0.8);
+          
+          // Send to backend for face detection
+          const response = await fetch('/api/face_detection', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              session_id: sessionId,
+              image: imageData
+            })
+          });
+          
+          const result = await response.json();
+          
+          if (result.cheating_detected) {
+            console.log(`Face cheat detected: ${result.cheat_reason}`);
+            
+            // Show warning
+            cheatWarning.style.display = 'block';
+            cheatMessage.textContent = result.message || 'Face detection alert';
+            
+            if (result.status === 'completed') {
+              status.textContent = 'Interview completed due to suspicious activity. Report generated.';
+              status.className = 'status error';
+              submitBtn.disabled = true;
+              answerText.disabled = true;
+              faceStatus.textContent = 'Completed';
+              faceStatus.parentElement.className = 'status error';
+              
+              // Show report button
+              reportBtn.style.display = 'block';
+              reportBtn.textContent = 'Download Report';
+              
+              // Store session ID for report
+              localStorage.setItem('session_id', sessionId);
+              
+            } else if (result.status === 'terminated') {
+              status.textContent = 'Interview terminated due to suspicious activity.';
+              status.className = 'status error';
+              submitBtn.disabled = true;
+              answerText.disabled = true;
+              faceStatus.textContent = 'Terminated';
+              faceStatus.parentElement.className = 'status error';
+              
+              // Check if report was generated
+              if (result.report_generated) {
+                status.textContent += ' Report generated.';
+                reportBtn.style.display = 'block';
+                reportBtn.textContent = 'Download Report';
+              }
+            } else {
+              setTimeout(() => {
+                cheatWarning.style.display = 'none';
+              }, 5000);
+            }
+          } else {
+            // Update face status
+            if (result.face_result && result.face_result.faces_detected) {
+              faceStatus.textContent = `Face Detected (${result.face_result.face_count})`;
+              faceStatus.parentElement.className = 'status success';
+            } else {
+              faceStatus.textContent = 'No Face Detected';
+              faceStatus.parentElement.className = 'status error';
+            }
+          }
+          
+        } catch (err) {
+          console.error('Face detection error:', err);
+        }
+      }, 2000); // Check every 2 seconds
+    }
+
+    // Cheating Detection System
+    function initCheatDetection() {
+      console.log('Initializing cheat detection...');
+      
+      // Tab switching detection - RE-ENABLED
+      document.addEventListener('visibilitychange', handleTabSwitch);
+      
+      // Window focus/blur detection - RE-ENABLED  
+      window.addEventListener('blur', handleWindowBlur);
+      window.addEventListener('focus', handleWindowFocus);
+      
+      // Copy-paste detection - RE-ENABLED
+      document.addEventListener('copy', handleCopyAttempt);
+      document.addEventListener('paste', handlePasteAttempt);
+      
+      // Keyboard shortcuts - RE-ENABLED
+      document.addEventListener('keydown', handleKeyboardShortcuts);
+      
+      // Inactivity detection - RE-ENABLED
+      setupInactivityDetection();
+      
+      console.log('Cheat detection initialized');
+    }
+
+    function handleTabSwitch() {
+      if (document.hidden) {
+        tabSwitchCount++;
+        console.log(`Tab switched ${tabSwitchCount} times`);
+        reportCheat('Tab switching detected');
+      }
+    }
+
+    function handleWindowBlur() {
+      console.log('Window lost focus');
+      reportCheat('Window focus lost');
+    }
+
+    function handleWindowFocus() {
+      console.log('Window gained focus');
+    }
+
+    function handleCopyAttempt(e) {
+      e.preventDefault();
+      console.log('Copy attempt blocked');
+      reportCheat('Copy attempt detected');
+    }
+
+    function handlePasteAttempt(e) {
+      e.preventDefault();
+      console.log('Paste attempt blocked');
+      reportCheat('Paste attempt detected');
+    }
+
+    function handleKeyboardShortcuts(e) {
+      // Block common shortcuts
+      const blockedKeys = [
+        'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12',
+        'Escape', 'Tab'
+      ];
+      
+      if (blockedKeys.includes(e.key) || 
+          (e.ctrlKey && (e.key === 'c' || e.key === 'v' || e.key === 'x' || e.key === 'a')) ||
+          (e.altKey && e.key === 'Tab')) {
+        e.preventDefault();
+        console.log(`Keyboard shortcut blocked: ${e.key}`);
+        reportCheat(`Keyboard shortcut: ${e.key}`);
+      }
+    }
+
+    function setupInactivityDetection() {
+      let inactivityTimer;
+      
+      function resetInactivityTimer() {
+        clearTimeout(inactivityTimer);
+        inactivityTimer = setTimeout(() => {
+          console.log('Inactivity detected');
+          reportCheat('User inactive for too long');
+        }, 60000); // 1 minute
+      }
+      
+      // Reset timer on user activity
+      document.addEventListener('mousemove', resetInactivityTimer);
+      document.addEventListener('keypress', resetInactivityTimer);
+      document.addEventListener('click', resetInactivityTimer);
+      document.addEventListener('scroll', resetInactivityTimer);
+      
+      resetInactivityTimer();
+    }
+
+    async function reportCheat(reason) {
+      try {
+        const response = await fetch('/api/cheat_strike', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            session_id: sessionId,
+            reason: reason
+          })
+        });
+        
+        const result = await response.json();
+        
+        // Show warning
+        cheatWarning.style.display = 'block';
+        cheatMessage.textContent = `${reason} - Strike ${result.strikes || 0}/5`;
+        
+        if (result.status === 'completed') {
+          status.textContent = 'Interview completed due to suspicious activity. Report generated.';
+          status.className = 'status error';
+          submitBtn.disabled = true;
+          answerText.disabled = true;
+          reportBtn.style.display = 'block';
+          localStorage.setItem('session_id', sessionId);
+        } else {
+          setTimeout(() => {
+            cheatWarning.style.display = 'none';
+          }, 3000);
+        }
+        
+      } catch (error) {
+        console.error('Cheat report error:', error);
+      }
+    }
+
+    function handleWindowBlur() {
+      console.log('Window lost focus');
+      reportCheat('Window focus lost');
+    }
+
+    function handleWindowFocus() {
+      lastActiveTime = Date.now();
+    }
+
+    function handlePaste(e) {
+      e.preventDefault();
+      console.log('Paste attempt blocked');
+      reportCheat('Copy-paste detected');
+      return false;
+    }
+
+    function handleCopy(e) {
+      e.preventDefault();
+      console.log('Copy attempt blocked');
+      reportCheat('Copy attempt detected');
+      return false;
+    }
+
+    function handleKeyDown(e) {
+      // Block common cheating shortcuts
+      const blockedKeys = [
+        'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12',
+        'Ctrl+C', 'Ctrl+V', 'Ctrl+X', 'Ctrl+A', 'Ctrl+S', 'Ctrl+P',
+        'Alt+Tab', 'Ctrl+Tab'
+      ];
+      
+      if (e.ctrlKey && ['c', 'v', 'x', 'a', 's', 'p'].includes(e.key.toLowerCase())) {
+        e.preventDefault();
+        console.log(`Blocked shortcut: Ctrl+${e.key}`);
+        reportCheat(`Keyboard shortcut blocked: Ctrl+${e.key}`);
+        return false;
+      }
+    }
+
+    function checkInactivity() {
+      const now = Date.now();
+      const inactiveTime = now - lastActiveTime;
+      
+      if (inactiveTime > 30000) { // 30 seconds
+        console.log(`Inactivity detected: ${inactiveTime}ms`);
+        reportCheat('Extended inactivity detected');
+      }
+    }
+
+    async function reportCheat(reason) {
+      if (!sessionId) return;
+      
+      try {
+        const response = await fetch('/api/cheat_strike', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            session_id: sessionId,
+            reason: reason,
+            timestamp: new Date().toISOString()
+          })
+        });
+        
+        const result = await response.json();
+        strikes = result.strikes || strikes + 1;
+        
+        console.log(`Cheat reported: ${reason} - Strikes: ${strikes}`);
+        
+        if (result.status === 'terminated') {
+          cheatWarning.style.display = 'block';
+          cheatMessage.textContent = result.message;
+          status.textContent = 'Interview terminated due to suspicious activity.';
+          status.className = 'status error';
+          submitBtn.disabled = true;
+          answerText.disabled = true;
+        } else {
+          cheatWarning.style.display = 'block';
+          cheatMessage.textContent = result.message;
+          
+          // Hide warning after 5 seconds
+          setTimeout(() => {
+            cheatWarning.style.display = 'none';
+          }, 5000);
+        }
+        
+      } catch (err) {
+        console.error('Error reporting cheat:', err);
+      }
+    }
+
+    // Camera functions
+    async function initCamera() {
+      try {
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user' },
+          audio: false
+        });
+        video.srcObject = cameraStream;
+        cameraStatus.textContent = 'Active';
+        cameraStatus.parentElement.className = 'status success';
+      } catch (err) {
+        console.error('Camera error:', err);
+        cameraStatus.textContent = 'Failed';
+        cameraStatus.parentElement.className = 'status error';
+      }
+    }
+
+    // Interview functions
+    async function startInterview() {
+      try {
+        const jd = localStorage.getItem('jd') || 'Software Engineer';
+        const experience = localStorage.getItem('experience') || '3 years';
+        const maxQuestions = localStorage.getItem('questionCount') || '5';
+
+        const response = await fetch('/api/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jd, experience, questionCount: parseInt(maxQuestions) })
+        });
+
+        const data = await response.json();
+        
+        if (data.error) {
+          throw new Error(data.error);
+        }
+
+        sessionId = data.session_id;
+        currentQuestion = data.question;
+        feedbackText.textContent = data.intro || 'Interview started!';
+        questionText.textContent = data.question;
+        currentQuestion = data.question;
+        
+        // Auto-speak intro and question
+        setTimeout(() => {
+          if (data.intro) {
+            speakText(data.intro);
+          }
+          setTimeout(() => {
+            if (data.question) {
+              speakText(data.question);
+            }
+          }, 3000); // Wait 3 seconds after intro
+        }, 1000); // Wait 1 second before speaking
+        questionProgress.textContent = `1/${maxQuestions}`;
+        answerText.value = '';
+        
+        status.textContent = 'Interview started. Answer the question below.';
+        status.className = 'status success';
+        
+      } catch (err) {
+        console.error('Start interview error:', err);
+        status.textContent = 'Error: ' + err.message;
+        status.className = 'status error';
+      }
+    }
+
+    // Submit answer
+    submitBtn.addEventListener('click', async () => {
+      console.log('Submit button clicked!');
+      console.log('Button disabled:', submitBtn.disabled);
+      console.log('Button computed style disabled:', getComputedStyle(submitBtn).pointerEvents === 'none');
+      console.log('Button z-index:', getComputedStyle(submitBtn).zIndex);
+      console.log('Button position:', getComputedStyle(submitBtn).position);
+      
+      if (submitBtn.disabled) {
+        console.log('Button is disabled, cannot submit');
+        return;
+      }
+      
+      const answer = answerText.value.trim();
+      console.log('Answer length:', answer.length);
+      console.log('Answer content:', answer);
+      console.log('Session ID:', sessionId);
+      
+      if (!answer || !sessionId) {
+        console.log('Cannot submit - missing answer or session');
+        console.log('Session ID:', sessionId);
+        console.log('Answer:', answer);
+        alert('Please enter an answer before submitting.');
+        return;
+      }
+
+      console.log('Submitting answer to session:', sessionId);
+      console.log('Answer:', answer);
+
+      try {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Submitting...';
+        status.textContent = 'Submitting answer...';
+
+        // Add timeout and retry mechanism
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+
+        const response = await fetch('/api/answer', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: sessionId, answer }),
+          signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+        console.log('Response status:', response.status);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        console.log('Response data:', data);
+        
+        if (data.error) {
+          throw new Error(data.error);
+        }
+
+        console.log('Decision:', data.decision);
+        console.log('Next question:', data.next_question);
+        console.log('Feedback:', data.feedback);
+
+        const maxQuestions = localStorage.getItem('questionCount') || '5';
+        const currentQuestionNum = parseInt(questionProgress.textContent.split('/')[0]) + 1;
+
+        feedbackText.textContent = data.feedback;
+        
+        // Auto-speak feedback
+        setTimeout(() => {
+          if (data.feedback) {
+            speakText(data.feedback);
+          }
+        }, 1000);
+        
+        if (data.decision === 'INTERVIEW_COMPLETE') {
+          status.textContent = 'Interview completed! Generating report...';
+          status.className = 'status success';
+          submitBtn.style.display = 'none';
+          
+          if (data.report_generated) {
+            reportBtn.style.display = 'block';
+            status.textContent += ' Report ready for download.';
+          }
+        } else {
+          // Always show submit button for manual control
+          // Don't auto-advance to next question
+          if (data.next_question) {
+            currentQuestion = data.next_question;
+            questionText.textContent = data.next_question;
+            questionProgress.textContent = `${currentQuestionNum}/${maxQuestions}`;
+            
+            // Auto-speak next question after feedback
+            setTimeout(() => {
+              if (data.next_question) {
+                speakText(data.next_question);
+              }
+            }, 4000); // Wait 4 seconds after feedback
+            
+            // Keep submit button visible for manual control
+            submitBtn.style.display = 'block';
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Submit Answer';
+            
+            // Clear answer field for next question
+            answerText.value = '';
+            answerText.focus();
+            
+            status.textContent = 'Answer the next question.';
+            status.className = 'status info';
+            
+            console.log('Next question loaded, button enabled:', !submitBtn.disabled);
+          } else {
+            // If no next question, keep submit button visible
+            submitBtn.style.display = 'block';
+            submitBtn.textContent = 'Submit Answer';
+          }
+        }
+        
+      } catch (err) {
+        console.error('Submit answer error:', err);
+        
+        // Handle different error types
+        if (err.name === 'AbortError') {
+          status.textContent = 'Submission timed out after 60 seconds. Please try again.';
+          status.className = 'status error';
+        } else if (err.message.includes('quota')) {
+          status.textContent = 'API quota exceeded. Please check your API key.';
+          status.className = 'status error';
+        } else {
+          status.textContent = 'Error: ' + err.message;
+          status.className = 'status error';
+        }
+        
+        // Reset button state
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Submit Answer';
+        
+        // Add retry button after error
+        setTimeout(() => {
+          if (submitBtn.disabled) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Retry Submit';
+            resetBtn.style.display = 'inline-block';
+          }
+        }, 2000);
+      } finally {
+        // Always reset button text if not disabled
+        if (!submitBtn.disabled) {
+          submitBtn.textContent = 'Submit Answer';
+        }
+      }
+    });
+
+    // Reset submission button
+    resetBtn.addEventListener('click', () => {
+      console.log('Resetting submission state');
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Submit Answer';
+      submitBtn.style.display = 'inline-block';
+      resetBtn.style.display = 'none';
+      status.textContent = 'Ready to submit answer.';
+      status.className = 'status info';
+    });
+
+    // Report download
+    reportBtn.addEventListener('click', async () => {
+      try {
+        console.log('Downloading report for session:', sessionId);
+        
+        const response = await fetch('/api/report', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: sessionId })
+        });
+        
+        const result = await response.json();
+        
+        if (result.error) {
+          throw new Error(result.error);
+        }
+        
+        // Create download link
+        if (result.pdf_base64) {
+          const link = document.createElement('a');
+          link.href = `data:application/pdf;base64,${result.pdf_base64}`;
+          link.download = `interview-report-${sessionId}.pdf`;
+          link.click();
+        } else if (result.text_report) {
+          // Download text report
+          const blob = new Blob([result.text_report], { type: 'text/plain' });
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = `interview-report-${sessionId}.txt`;
+          link.click();
+        } else {
+          throw new Error('No report data available');
+        }
+        
+      } catch (error) {
+        console.error('Report download error:', error);
+        alert('Failed to download report: ' + error.message);
+      }
+    });
+  </script>
+  </body>
+</html>

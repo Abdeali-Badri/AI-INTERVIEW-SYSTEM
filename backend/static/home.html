@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>AI Interview System</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .container {
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+      width: 100%;
+      max-width: 500px;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 2rem;
+      margin-bottom: 10px;
+    }
+
+    .header p {
+      opacity: 0.9;
+      font-size: 1rem;
+    }
+
+    .form-section {
+      padding: 40px 30px;
+    }
+
+    .form-group {
+      margin-bottom: 25px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: 15px;
+      border: 2px solid #e1e5e9;
+      border-radius: 10px;
+      font-size: 16px;
+      resize: vertical;
+      min-height: 100px;
+      font-family: inherit;
+    }
+
+    select {
+      width: 100%;
+      padding: 15px;
+      border: 2px solid #e1e5e9;
+      border-radius: 10px;
+      font-size: 16px;
+      font-family: inherit;
+      background-color: white;
+      cursor: pointer;
+    }
+
+    select:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .form-group textarea {
+      resize: vertical;
+      min-height: 100px;
+    }
+
+    .btn {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 14px 28px;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      width: 100%;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .features {
+      background: #f8f9fa;
+      padding: 30px;
+      border-top: 1px solid #e1e5e9;
+    }
+
+    .features h3 {
+      margin-bottom: 15px;
+      color: #333;
+    }
+
+    .features ul {
+      list-style: none;
+    }
+
+    .features li {
+      padding: 8px 0;
+      color: #666;
+    }
+
+    .features li::before {
+      content: "✓ ";
+      color: #667eea;
+      font-weight: bold;
+      margin-right: 8px;
+    }
+
+    .loading {
+      display: none;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .spinner {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #667eea;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 10px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🤖 AI Interview System</h1>
+      <p>Practice your interview skills with AI-powered feedback</p>
+    </div>
+
+    <div class="form-section">
+      <form id="interview-form">
+        <div class="form-group">
+          <label for="jd">Job Description</label>
+          <textarea id="jd" name="jd" required placeholder="Paste the job description or describe the role you're applying for..." rows="6"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="experience">Years of Experience / Profile</label>
+          <textarea id="experience" name="experience" required placeholder="e.g. 3 years with Python, ML model deployment, React..." rows="4"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="questionCount">Number of Questions</label>
+          <select id="questionCount" name="questionCount" required>
+            <option value="3">3 Questions (Quick Interview)</option>
+            <option value="5" selected>5 Questions (Standard Interview)</option>
+            <option value="7">7 Questions (Detailed Interview)</option>
+            <option value="10">10 Questions (Comprehensive Interview)</option>
+          </select>
+        </div>
+
+        <button type="submit" class="btn">🚀 Start Interview</button>
+      </form>
+
+      <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>Preparing your interview...</p>
+      </div>
+    </div>
+
+    <div class="features">
+      <h3>What to expect:</h3>
+      <ul>
+        <li>AI-powered interviewer with real-time questions</li>
+        <li>Face detection for interview authenticity</li>
+        <li>Voice and text input options</li>
+        <li>Instant feedback and evaluation</li>
+        <li>Detailed performance report</li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('interview-form').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const formData = new FormData(this);
+      const data = {
+        jd: formData.get('jd'),
+        experience: formData.get('experience'),
+        questionCount: formData.get('questionCount')
+      };
+
+      // Store in localStorage for the interview page
+      localStorage.setItem('experience', data.experience);
+      localStorage.setItem('jd', data.jd);
+      localStorage.setItem('questionCount', data.questionCount);
+
+      // Show loading
+      document.getElementById('interview-form').style.display = 'none';
+      document.getElementById('loading').style.display = 'block';
+
+      try {
+        // Initialize session with backend
+        const response = await fetch('/api/start', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            jd: data.jd,
+            experience: data.experience,
+            questionCount: parseInt(data.questionCount)
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to start interview');
+        }
+
+        const result = await response.json();
+        
+        // Store session data
+        localStorage.setItem('session_id', result.session_id || '');
+        localStorage.setItem('intro', result.intro || '');
+        localStorage.setItem('first_question', result.question || '');
+        localStorage.setItem('first_audio', result.audio || '');
+
+        // Redirect to interview page
+        window.location.href = '/simple-interview.html';
+        
+      } catch (error) {
+        console.error('Error starting interview:', error);
+        alert('Failed to start interview. Please try again.');
+        
+        // Hide loading and show form again
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('interview-form').style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html>

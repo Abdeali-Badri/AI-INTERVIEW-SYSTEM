@@ -1,153 +1,184 @@
-// Fetch report from backend and render. Support PDF download using jsPDF + html2canvas.
-
-const loadingBlock = document.getElementById('loading-block');
-const reportContainer = document.getElementById('report-container');
-const downloadBtn = document.getElementById('download-pdf');
-const backHomeBtn = document.getElementById('back-home');
-
-backHomeBtn.addEventListener('click', () => {
-  window.location.href = 'index.html';
+// Report generation script
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('📄 Loading interview report...');
+    
+    // Get session ID from URL or localStorage
+    const urlParams = new URLSearchParams(window.location.search);
+    const sessionId = urlParams.get('session_id') || localStorage.getItem('session_id');
+    
+    if (!sessionId) {
+        showError('No session ID found. Please start a new interview.');
+        return;
+    }
+    
+    try {
+        // Fetch report data
+        const response = await fetch('/api/report', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ session_id: sessionId })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        
+        if (result.error) {
+            throw new Error(result.error);
+        }
+        
+        // Display report
+        displayReport(result);
+        
+    } catch (error) {
+        console.error('Error loading report:', error);
+        showError(`Failed to load report: ${error.message}`);
+    }
 });
 
-async function fetchReport() {
-  const sessionId = localStorage.getItem('session_id');
-  if (!sessionId) {
-    alert('No active session found. Starting from home.');
-    window.location.href = 'index.html';
-    return;
-  }
-
-  try {
-    const res = await fetch('/api/report', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ session_id: sessionId }),
-    });
-    if (!res.ok) throw new Error(`report failed: ${res.status}`);
-    const data = await res.json();
-    const text = data.report || 'Failed to generate report.';
-    renderMarkdownBasic(text);
-  } catch (e) {
-    console.error(e);
-    renderMarkdownBasic('Failed to generate report.');
-  } finally {
-    loadingBlock.style.display = 'none';
-    reportContainer.style.display = 'block';
-  }
+function displayReport(data) {
+    const container = document.getElementById('report-container');
+    const loading = document.getElementById('loading-block');
+    
+    // Build report HTML
+    const reportHTML = `
+        <div class="report-section">
+            <h2>📋 Interview Summary</h2>
+            <div class="summary-grid">
+                <div class="summary-item">
+                    <label>Job Description:</label>
+                    <span>${data.job_description || 'N/A'}</span>
+                </div>
+                <div class="summary-item">
+                    <label>Experience:</label>
+                    <span>${data.experience || 'N/A'}</span>
+                </div>
+                <div class="summary-item">
+                    <label>Questions Asked:</label>
+                    <span>${data.question_count || 'N/A'}</span>
+                </div>
+                <div class="summary-item">
+                    <label>Cheat Strikes:</label>
+                    <span class="${data.strikes > 0 ? 'text-danger' : 'text-success'}">${data.strikes || 0}</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="report-section">
+            <h2>📝 Interview Transcript</h2>
+            <div class="transcript">
+                ${data.transcript ? formatTranscript(data.transcript) : '<p>No transcript available</p>'}
+            </div>
+        </div>
+        
+        <div class="report-section">
+            <h2>📊 Performance Analysis</h2>
+            <div class="analysis">
+                ${data.analysis || '<p>No analysis available</p>'}
+            </div>
+        </div>
+        
+        <div class="report-section">
+            <h2>🎯 Recommendations</h2>
+            <div class="recommendations">
+                ${data.recommendations || '<p>No recommendations available</p>'}
+            </div>
+        </div>
+    `;
+    
+    container.innerHTML = reportHTML;
+    loading.style.display = 'none';
+    container.style.display = 'block';
+    
+    // Setup PDF download
+    setupPDFDownload();
 }
 
-// Very small markdown renderer for headings and bullets (no external lib)
-function renderMarkdownBasic(md) {
-  const lines = md.split(/\r?\n/);
-  const root = document.createElement('div');
-
-  let currentUl = null;
-
-  for (const rawLine of lines) {
-    const line = rawLine.trimEnd();
-    if (!line) {
-      const br = document.createElement('br');
-      root.appendChild(br);
-      continue;
+function formatTranscript(transcript) {
+    if (!transcript) return '<p>No transcript available</p>';
+    
+    // Try to parse transcript if it's a string
+    let transcriptData;
+    try {
+        transcriptData = typeof transcript === 'string' ? JSON.parse(transcript) : transcript;
+    } catch {
+        // If parsing fails, treat as plain text
+        return `<p>${transcript}</p>`;
     }
-
-    if (line.startsWith('# ')) {
-      const h1 = document.createElement('h1');
-      h1.textContent = line.replace(/^#\s*/, '');
-      root.appendChild(h1);
-      currentUl = null;
-      continue;
+    
+    if (Array.isArray(transcriptData)) {
+        return transcriptData.map(item => `
+            <div class="transcript-item">
+                <div class="question">
+                    <strong>Q${item.question_number || '?'}:</strong> ${item.question || 'N/A'}
+                </div>
+                <div class="answer">
+                    <strong>A:</strong> ${item.answer || 'N/A'}
+                </div>
+                ${item.feedback ? `<div class="feedback"><em>Feedback: ${item.feedback}</em></div>` : ''}
+            </div>
+        `).join('');
     }
-    if (line.startsWith('## ')) {
-      const h2 = document.createElement('h2');
-      h2.textContent = line.replace(/^##\s*/, '');
-      root.appendChild(h2);
-      currentUl = null;
-      continue;
-    }
-    if (line.startsWith('### ')) {
-      const h3 = document.createElement('h3');
-      h3.textContent = line.replace(/^###\s*/, '');
-      root.appendChild(h3);
-      currentUl = null;
-      continue;
-    }
-
-    if (line.startsWith('- ')) {
-      if (!currentUl) {
-        currentUl = document.createElement('ul');
-        root.appendChild(currentUl);
-      }
-      const li = document.createElement('li');
-      li.textContent = line.replace(/^-+\s*/, '');
-      currentUl.appendChild(li);
-      continue;
-    }
-
-    currentUl = null;
-    const p = document.createElement('p');
-    p.textContent = line;
-    root.appendChild(p);
-  }
-
-  reportContainer.innerHTML = '';
-  reportContainer.appendChild(root);
+    
+    return `<p>${transcript}</p>`;
 }
 
-downloadBtn.addEventListener('click', async () => {
-  if (!window.jspdf || !window.html2canvas) {
-    alert('PDF libraries not loaded. Please check your connection and retry.');
-    return;
-  }
-
-  try {
-    downloadBtn.disabled = true;
-    downloadBtn.textContent = '⏳ Generating...';
-
-    const { jsPDF } = window.jspdf;
-    const element = reportContainer;
-    const canvas = await window.html2canvas(element, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: '#ffffff',
+function setupPDFDownload() {
+    const downloadBtn = document.getElementById('download-pdf');
+    
+    downloadBtn.addEventListener('click', async () => {
+        try {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Add title
+            doc.setFontSize(20);
+            doc.text('Interview Report', 20, 20);
+            
+            // Add date
+            doc.setFontSize(12);
+            doc.text(`Generated: ${new Date().toLocaleString()}`, 20, 30);
+            
+            // Add content
+            const content = document.getElementById('report-container').innerText;
+            const lines = doc.splitTextToSize(content, 170);
+            
+            let y = 40;
+            lines.forEach(line => {
+                if (y > 280) {
+                    doc.addPage();
+                    y = 20;
+                }
+                doc.text(line, 20, y);
+                y += 7;
+            });
+            
+            // Save PDF
+            doc.save('interview-report.pdf');
+            
+        } catch (error) {
+            console.error('Error generating PDF:', error);
+            alert('Failed to generate PDF. Please try again.');
+        }
     });
+    
+    // Back to home button
+    document.getElementById('back-home').addEventListener('click', () => {
+        window.location.href = '/';
+    });
+}
 
-    const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF('p', 'mm', 'a4');
-
-    const pdfW = pdf.internal.pageSize.getWidth();
-    const pdfH = pdf.internal.pageSize.getHeight();
-    const imgW = canvas.width;
-    const imgH = canvas.height;
-    const ratio = Math.min(pdfW / imgW, pdfH / imgH);
-    const renderW = imgW * ratio;
-    const renderH = imgH * ratio;
-
-    let heightLeft = renderH;
-    let position = 0;
-
-    pdf.addImage(imgData, 'PNG', 0, position, renderW, renderH);
-    heightLeft -= pdfH;
-
-    while (heightLeft > 0) {
-      position = heightLeft - renderH;
-      pdf.addPage();
-      pdf.addImage(imgData, 'PNG', 0, position, renderW, renderH);
-      heightLeft -= pdfH;
-    }
-
-    const name = `Interview_Report_${new Date()
-      .toISOString()
-      .split('T')[0]}.pdf`;
-    pdf.save(name);
-  } catch (e) {
-    console.error(e);
-    alert('Failed to generate PDF. Please try again.');
-  } finally {
-    downloadBtn.disabled = false;
-    downloadBtn.textContent = '📄 Download PDF';
-  }
-});
-
-fetchReport();
-
+function showError(message) {
+    const loading = document.getElementById('loading-block');
+    loading.innerHTML = `
+        <div style="color: #dc2626; text-align: center; padding: 2rem;">
+            <h3>❌ Error</h3>
+            <p>${message}</p>
+            <button onclick="window.location.href='/'" class="btn btn-primary">
+                🏠 Back to Home
+            </button>
+        </div>
+    `;
+}
