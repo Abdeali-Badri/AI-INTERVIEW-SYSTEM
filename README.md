@@ -14,7 +14,7 @@ An intelligent mock interview platform that generates role-specific questions fr
 AI Interview System is a full-stack AI-powered mock interview platform. The user pastes a job description, and the AI generates relevant interview questions for that specific role. The user answers each question, and the AI evaluates the response — providing detailed feedback on accuracy, clarity, and completeness.
 Built with a Python backend and a JavaScript/HTML/CSS frontend, this system simulates a real interview experience end-to-end.
 
-# Key Features
+# Key Features :-
 
 🧠 Job-description-aware question generation — questions are tailored to the exact role, not generic
 💬 Real-time answer evaluation — AI grades your response and explains what was good or missing
@@ -24,7 +24,7 @@ Built with a Python backend and a JavaScript/HTML/CSS frontend, this system simu
 🛠️ Backend verification script — verify_backend.py for easy health checks during development
 
 
-# Tech Stack
+# Tech Stack :-
 ```
 | Component       | Technology              |
 |-----------------|-------------------------|
@@ -142,3 +142,4 @@ python verify_backend.py
 ## Author
 **Abdeali Badri**
 [github.com/Abdeali-Badri](https://github.com/Abdeali-Badri)
+
