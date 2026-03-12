@@ -25,7 +25,7 @@ Built with a Python backend and a JavaScript/HTML/CSS frontend, this system simu
 
 
 # Tech Stack :-
-```
+
 | Component       | Technology              |
 |-----------------|-------------------------|
 | Backend         | Python (FastAPI / Flask)|
@@ -33,7 +33,7 @@ Built with a Python backend and a JavaScript/HTML/CSS frontend, this system simu
 | LLM             | OpenAI GPT API          |
 | Package Manager | uv                      |
 | Language        | Python 3.11+            |
-```
+
 
 # How It Works :-
 ```
@@ -142,4 +142,5 @@ python verify_backend.py
 ## Author
 **Abdeali Badri**
 [github.com/Abdeali-Badri](https://github.com/Abdeali-Badri)
+
 
